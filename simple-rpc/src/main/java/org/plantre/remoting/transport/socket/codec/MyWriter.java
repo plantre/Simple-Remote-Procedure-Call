@@ -8,11 +8,8 @@ import org.plantre.serialize.Serializer;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- *
- * @author ziyang
- */
-public class ObjectWriter {
+
+public class MyWriter {
 
     private static final int MAGIC_NUMBER = 0xCAFEBABE;
 

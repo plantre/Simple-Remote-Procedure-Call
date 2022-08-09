@@ -13,20 +13,19 @@ import org.apache.zookeeper.CreateMode;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Curator(zookeeper client) utils
+ * ZK客户端操作
  */
 @Slf4j
 public final class CuratorUtils {
 
     private static final int BASE_SLEEP_TIME = 1000;
     private static final int MAX_RETRIES = 3;
-    public static final String ZK_REGISTER_ROOT_PATH = "/my-rpc";
+    public static final String ZK_REGISTER_ROOT_PATH = "/simple-rpc";
     private static final Map<String, List<String>> SERVICE_ADDRESS_MAP = new ConcurrentHashMap<>();
     private static final Set<String> REGISTERED_PATH_SET = ConcurrentHashMap.newKeySet();
     private static CuratorFramework zkClient;
@@ -36,9 +35,7 @@ public final class CuratorUtils {
     }
 
     /**
-     * Create persistent nodes. Unlike temporary nodes, persistent nodes are not removed when the client disconnects
-     *
-     * @param path node path
+     *创建持久节点
      */
     public static void createPersistentNode(CuratorFramework zkClient, String path) {
         try {
@@ -56,10 +53,7 @@ public final class CuratorUtils {
     }
 
     /**
-     * Gets the children under a node
-     *
-     * @param rpcServiceName rpc service name eg:github.javaguide.HelloServicetest2version1
-     * @return All child nodes under the specified node
+     *获取孩子节点
      */
     public static List<String> getChildrenNodes(CuratorFramework zkClient, String rpcServiceName) {
         if (SERVICE_ADDRESS_MAP.containsKey(rpcServiceName)) {
@@ -78,7 +72,7 @@ public final class CuratorUtils {
     }
 
     /**
-     * Empty the registry of data
+     * 清空注册数据
      */
     public static void clearRegistry(CuratorFramework zkClient, InetSocketAddress inetSocketAddress) {
         REGISTERED_PATH_SET.stream().parallel().forEach(p -> {
@@ -95,20 +89,18 @@ public final class CuratorUtils {
 
     public static CuratorFramework getZkClient() {
         String zookeeperAddress =DEFAULT_ZOOKEEPER_ADDRESS;
-        // if zkClient has been started, return directly
         if (zkClient != null && zkClient.getState() == CuratorFrameworkState.STARTED) {
             return zkClient;
         }
-        // Retry strategy. Retry 3 times, and will increase the sleep time between retries.
+        // 3次尝试策略
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(BASE_SLEEP_TIME, MAX_RETRIES);
         zkClient = CuratorFrameworkFactory.builder()
-                // the server to connect to (can be a server list)
                 .connectString(zookeeperAddress)
                 .retryPolicy(retryPolicy)
                 .build();
         zkClient.start();
         try {
-            // wait 30s until connect to the zookeeper
+            // 30s等待时间连接ZK
             if (!zkClient.blockUntilConnected(30, TimeUnit.SECONDS)) {
                 throw new RuntimeException("Time out waiting to connect to ZK!");
             }
@@ -119,9 +111,8 @@ public final class CuratorUtils {
     }
 
     /**
-     * Registers to listen for changes to the specified node
+     * 注册监听机制
      *
-     * @param rpcServiceName rpc service name eg:github.javaguide.HelloServicetest2version
      */
     private static void registerWatcher(String rpcServiceName, CuratorFramework zkClient) throws Exception {
         String servicePath = ZK_REGISTER_ROOT_PATH + "/" + rpcServiceName;

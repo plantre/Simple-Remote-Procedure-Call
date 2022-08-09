@@ -9,8 +9,6 @@ import java.io.Serializable;
 
 /**
  * 提供者执行完成或出错后向消费者返回的结果对象
- *
- * @author ziyang
  */
 @Data
 @NoArgsConstructor

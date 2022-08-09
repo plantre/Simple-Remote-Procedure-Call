@@ -1,22 +1,22 @@
 package org.plantre.serviceimpl;
 
-import lombok.extern.slf4j.Slf4j;
 import org.plantre.Hello;
 import org.plantre.HelloService;
+import org.plantre.annotation.RpcService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
+
+
+@RpcService
 public class HelloServiceImpl implements HelloService {
 
-    static {
-        System.out.println("HelloServiceImpl被创建");
-    }
+    private static final Logger logger = LoggerFactory.getLogger(HelloServiceImpl.class);
 
     @Override
-    public String hello(Hello hello) {
-        log.info("HelloServiceImpl收到: {}.", hello.getMessage());
-        String result = "Description is " + hello.getDescription();
-        log.info("HelloServiceImpl返回: {}.", result);
-        return result;
-
+    public String hello(Hello object) {
+        logger.info("接收到消息：{}", object.getMessage());
+        return "这是Impl方法";
     }
+
 }

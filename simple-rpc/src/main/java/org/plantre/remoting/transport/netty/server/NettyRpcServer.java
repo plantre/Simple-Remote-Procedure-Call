@@ -1,13 +1,17 @@
-package org.plantre.remoting.transport.socket.server;
+package org.plantre.remoting.transport.netty.server;
 
-
-import lombok.extern.slf4j.Slf4j;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.plantre.annotation.RpcService;
 import org.plantre.annotation.EnableRpcService;
 import org.plantre.common.enumeration.RpcError;
 import org.plantre.common.exception.RpcException;
-import org.plantre.common.factory.ThreadPoolFactory;
-
 import org.plantre.common.utils.ReflectUtil;
 import org.plantre.config.ShutdownHook;
 import org.plantre.provider.ServiceProvider;
@@ -15,33 +19,33 @@ import org.plantre.provider.ZkServiceProviderImpl;
 import org.plantre.registry.ServiceRegistry;
 import org.plantre.registry.ZkServiceRegistryImpl;
 import org.plantre.remoting.dynamicproxy.RpcServer;
+import org.plantre.remoting.transport.netty.codec.MyDecoder;
+import org.plantre.remoting.transport.netty.codec.MyEncoder;
 import org.plantre.serialize.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
-@Slf4j
-public class SocketRpcServer implements RpcServer {
+public class NettyRpcServer implements RpcServer {
+
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private String host;
+
     private int port;
 
-    private final ExecutorService threadPool;
     private final ServiceRegistry serviceRegistry;
     private final ServiceProvider serviceProvider;
     private final Serializer serializer;
 
 
 
-    public SocketRpcServer(String host, int port, Integer serializer) {
-        this.host = host;
+    public NettyRpcServer(int port, Integer serializer) {
         this.port = port;
-        threadPool= ThreadPoolFactory.createDefaultThreadPool("socket-rpc-server");
         this.serviceRegistry=new ZkServiceRegistryImpl();
         this.serviceProvider=new ZkServiceProviderImpl();
         this.serializer = Serializer.getByCode(serializer);
@@ -49,22 +53,49 @@ public class SocketRpcServer implements RpcServer {
 
     }
 
-    public void start(){
-        try(ServerSocket server = new ServerSocket()){
-            String host = InetAddress.getLocalHost().getHostAddress();
-            server.bind(new InetSocketAddress(host,port));
-            log.info("服务器正在启动...");
-            ShutdownHook.getShutdownHook().addClearAllHook();
-            Socket socket;
-            while ((socket = server.accept()) != null) {
-                log.info("消费者连接: {}:{}", socket.getInetAddress(), socket.getPort());
-                threadPool.execute(new SocketRequestHandlerThread(socket,serializer));
-            }
-            threadPool.shutdown();
-        }catch (IOException e){
-            log.error("服务器启动失败！",e);
+
+    @Override
+    public void start() {
+        ShutdownHook.getShutdownHook().addClearAllHook();
+        String host = null;
+        try {
+            host = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
         }
+        EventLoopGroup bossGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        try {
+
+            ServerBootstrap serverBootstrap=new ServerBootstrap();
+            serverBootstrap.group(bossGroup,workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .option(ChannelOption.SO_BACKLOG, 256)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    .childOption(ChannelOption.TCP_NODELAY, true)
+                    .handler(new LoggingHandler(LogLevel.INFO))
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            ChannelPipeline pipeline = ch.pipeline();
+                            pipeline.addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
+                                    .addLast(new MyEncoder(serializer))
+                                    .addLast(new MyDecoder())
+                                    .addLast(new NettyServerHandler());
+                        }
+                    });
+            ChannelFuture future = serverBootstrap.bind(host, port).sync();
+            future.channel().closeFuture().sync();
+        }catch (InterruptedException e){
+            logger.error("启动服务器时有错误发生: ", e);
+        }finally {
+            bossGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully();
+        }
+
+
     }
+
 
     public void scanServices() {
         String mainClassName = ReflectUtil.getStackTrace();
@@ -72,7 +103,7 @@ public class SocketRpcServer implements RpcServer {
         try {
             startClass = Class.forName(mainClassName);
             if(!startClass.isAnnotationPresent(EnableRpcService.class)) {
-                logger.error("启动类缺少 @RpcServiceScan 注解");
+                logger.error("启动类缺少 @EnableRpcService 注解");
                 throw new RpcException(RpcError.SERVICE_SCAN_PACKAGE_NOT_FOUND);
             }
         } catch (ClassNotFoundException e) {
@@ -117,5 +148,4 @@ public class SocketRpcServer implements RpcServer {
         serviceProvider.addService(service, serviceName);
         serviceRegistry.registerService(serviceName, new InetSocketAddress(host, port));
     }
-
 }

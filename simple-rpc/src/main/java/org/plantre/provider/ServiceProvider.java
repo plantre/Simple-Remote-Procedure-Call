@@ -1,13 +1,13 @@
 package org.plantre.provider;
 
-import org.plantre.config.RpcServiceConfig;
+
 
 public interface ServiceProvider {
 
 
-    void addService(RpcServiceConfig rpcServiceConfig);
+    <T>void addService(T service,String rpcServiceName);
 
     Object getService(String rpcServiceName);
 
-    void publishService(RpcServiceConfig rpcServiceConfig);
+    <T>void publishService(T service,String rpcServiceName);
 }
