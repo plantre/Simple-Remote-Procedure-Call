@@ -49,7 +49,7 @@ public class NettyRpcServer implements RpcServer {
         this.serviceRegistry=new ZkServiceRegistryImpl();
         this.serviceProvider=new ZkServiceProviderImpl();
         this.serializer = Serializer.getByCode(serializer);
-        scanServices();
+        enableRpcServices();
 
     }
 
@@ -97,7 +97,7 @@ public class NettyRpcServer implements RpcServer {
     }
 
 
-    public void scanServices() {
+    public void enableRpcServices() {
         String mainClassName = ReflectUtil.getStackTrace();
         Class<?> startClass;
         try {
