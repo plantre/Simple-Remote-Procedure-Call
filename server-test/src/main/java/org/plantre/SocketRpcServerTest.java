@@ -8,7 +8,7 @@ import org.plantre.remoting.transport.socket.server.SocketRpcServer;
 @EnableRpcService
 public class SocketRpcServerTest {
     public static void main(String[] args) {
-        SocketRpcServer socketRpcServer=new SocketRpcServer("127.0.0.1", 10008, Serializer.KRYO_SERIALIZER);
+        SocketRpcServer socketRpcServer=new SocketRpcServer(10008, Serializer.KRYO_SERIALIZER);
         socketRpcServer.start();
     }
 }

@@ -6,6 +6,7 @@ import org.plantre.annotation.RpcService;
 import org.plantre.annotation.EnableRpcService;
 import org.plantre.common.enumeration.RpcError;
 import org.plantre.common.exception.RpcException;
+import org.plantre.common.factory.SingletonFactory;
 import org.plantre.common.factory.ThreadPoolFactory;
 
 import org.plantre.common.utils.ReflectUtil;
@@ -28,7 +29,6 @@ import java.util.concurrent.ExecutorService;
 public class SocketRpcServer implements RpcServer {
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private String host;
     private int port;
 
     private final ExecutorService threadPool;
@@ -38,12 +38,11 @@ public class SocketRpcServer implements RpcServer {
 
 
 
-    public SocketRpcServer(String host, int port, Integer serializer) {
-        this.host = host;
+    public SocketRpcServer(int port, Integer serializer) {
         this.port = port;
         threadPool= ThreadPoolFactory.createDefaultThreadPool("socket-rpc-server");
-        this.serviceRegistry=new ZkServiceRegistryImpl();
-        this.serviceProvider=new ZkServiceProviderImpl();
+        this.serviceRegistry=SingletonFactory.getInstance(ZkServiceRegistryImpl.class);
+        this.serviceProvider=SingletonFactory.getInstance(ZkServiceProviderImpl.class);
         this.serializer = Serializer.getByCode(serializer);
         enableRpcServices();
 

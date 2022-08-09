@@ -1,9 +1,12 @@
 package org.plantre.remoting.transport.socket.server;
 
+
 import org.plantre.common.entity.RpcRequest;
+import org.plantre.common.entity.RpcResponse;
 import org.plantre.common.factory.SingletonFactory;
 import org.plantre.remoting.handler.RpcRequestHandler;
 import org.plantre.remoting.transport.socket.codec.MyReader;
+import org.plantre.remoting.transport.socket.codec.MyWriter;
 import org.plantre.serialize.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,8 @@ public class SocketRequestHandlerThread implements Runnable{
             OutputStream outputStream = socket.getOutputStream()) {
             RpcRequest rpcRequest = (RpcRequest) MyReader.readObject(inputStream);
             Object result = rpcRequestHandler.handle(rpcRequest);
+            RpcResponse<Object> response = RpcResponse.success(result, rpcRequest.getRequestId());
+            MyWriter.writeObject(outputStream, response, serializer);
 
 
         }catch (IOException e){
